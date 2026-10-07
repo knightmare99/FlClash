@@ -955,7 +955,7 @@ class IspEndpoint {
       'http' || 'https' => 'http',
       _ => null,
     };
-    if (type == null || !uri.hasPort) {
+    if (type == null || uri.port == 0) {
       return null;
     }
     final separator = uri.userInfo.indexOf(':');

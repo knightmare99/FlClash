@@ -21,8 +21,10 @@ void main() {
     test('maps https to an http proxy with TLS', () {
       final endpoint = IspEndpoint.tryParse('https://proxy.example:443')!;
       expect(endpoint.type, 'http');
+      expect(endpoint.port, 443);
       expect(endpoint.tls, isTrue);
       expect(endpoint.username, isEmpty);
+      expect(IspEndpoint.tryParse('http://proxy.example')!.port, 80);
     });
 
     test('treats scheme-less forms as socks5', () {
@@ -72,10 +74,10 @@ void main() {
 
   group('IspProxy.inject', () {
     Map<String, dynamic> profile() => {
-      'proxies': [
+      'proxies': <Object?>[
         {'name': 'HK', 'type': 'ss'},
       ],
-      'proxy-groups': [
+      'proxy-groups': <Object?>[
         {
           'name': 'Select',
           'type': 'select',
