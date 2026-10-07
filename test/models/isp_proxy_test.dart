@@ -60,6 +60,13 @@ void main() {
       'IP-CIDR,1.2.3.0/24,ISP,no-resolve',
     );
     expect(ispRuleOf('  ', 'ISP'), isNull);
+    expect(
+      ispRuleOf('https://chatgpt.com/c/1', 'ISP'),
+      'DOMAIN-SUFFIX,chatgpt.com,ISP',
+    );
+    expect(ispRuleOf('*.openai.com', 'ISP'), 'DOMAIN-SUFFIX,openai.com,ISP');
+    expect(ispRuleOf('FOO,bar', 'ISP'), isNull);
+    expect(ispRuleOf('DST-PORT,abc', 'ISP'), isNull);
   });
 
   group('IspProxy.inject', () {
@@ -103,6 +110,24 @@ void main() {
         'proxies': ['Select', 'HK', 'DIRECT'],
         'use': ['sub'],
       });
+    });
+
+    test('keeps groups that pull in every proxy out of the relay', () {
+      final raw = profile();
+      (raw['proxy-groups'] as List).addAll([
+        {'name': 'Auto', 'type': 'url-test', 'include-all': true},
+        {
+          'name': 'Pick',
+          'type': 'select',
+          'proxies': ['Auto'],
+        },
+      ]);
+      isp.inject(raw, const []);
+
+      expect(
+        ((raw['proxy-groups'] as List).last as Map)['proxies'],
+        ['Select', 'HK', 'DIRECT'],
+      );
     });
 
     test('changes nothing when disabled, unparsable or the name is taken', () {

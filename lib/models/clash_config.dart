@@ -991,8 +991,7 @@ class IspEndpoint {
   }
 }
 
-/// A bare domain is a `DOMAIN-SUFFIX` rule; anything with a comma is a rule
-/// without its target, which goes ahead of a trailing `no-resolve` or `src`.
+/// Drops what the core would reject: one bad rule fails the whole profile.
 String? ispRuleOf(String entry, String target) {
   final value = entry.trim();
   if (value.isEmpty) {
@@ -1000,14 +999,24 @@ String? ispRuleOf(String entry, String target) {
   }
   final parts = value.split(',').map((part) => part.trim()).toList();
   if (parts.length == 1) {
-    return 'DOMAIN-SUFFIX,$value,$target';
+    final domain = value
+        .replaceFirst(RegExp(r'^[a-zA-Z][\w+.-]*://'), '')
+        .split(RegExp(r'[/?#]'))
+        .first
+        .replaceFirst(RegExp(r'^(\*|\+)?\.'), '');
+    return domain.isEmpty ? null : 'DOMAIN-SUFFIX,$domain,$target';
+  }
+  final type = parts.first.toUpperCase();
+  if (!RuleAction.values.any((action) => action.value == type)) {
+    return null;
   }
   if (parts.last == 'no-resolve' || parts.last == 'src') {
     parts.insert(parts.length - 1, target);
   } else {
     parts.add(target);
   }
-  return parts.join(',');
+  final raw = parts.join(',');
+  return Rule.parse(raw, id: 0).payloadError == null ? raw : null;
 }
 
 extension IspProxyExt on IspProxy {
@@ -1033,6 +1042,7 @@ extension IspProxyExt on IspProxy {
     if (taken.contains(ispProxyName) || taken.contains(ispRelayGroupName)) {
       return rules;
     }
+    final looping = _groupsReachingAllProxies(groups);
     final providers = rawConfig['proxy-providers'];
     rawConfig['proxies'] = [
       ...proxies,
@@ -1043,7 +1053,11 @@ extension IspProxyExt on IspProxy {
       {
         'name': ispRelayGroupName,
         'type': 'select',
-        'proxies': [...groupNames, ...proxyNames, 'DIRECT'],
+        'proxies': [
+          ...groupNames.where((name) => !looping.contains(name)),
+          ...proxyNames,
+          'DIRECT',
+        ],
         if (providers is Map && providers.isNotEmpty)
           'use': [for (final key in providers.keys) key.toString()],
       },
@@ -1053,6 +1067,31 @@ extension IspProxyExt on IspProxy {
       ...rules,
     ];
   }
+}
+
+/// These groups pull in the ISP proxy itself, so dialing through one loops.
+Set<String> _groupsReachingAllProxies(List<Object?> groups) {
+  final maps = groups.whereType<Map>().toList();
+  final reaching = {
+    for (final group in maps)
+      if (group['include-all'] == true || group['include-all-proxies'] == true)
+        group['name'].toString(),
+  };
+  var grew = reaching.isNotEmpty;
+  while (grew) {
+    grew = false;
+    for (final group in maps) {
+      final name = group['name'].toString();
+      final members = group['proxies'];
+      if (!reaching.contains(name) &&
+          members is List &&
+          members.any((member) => reaching.contains(member.toString()))) {
+        reaching.add(name);
+        grew = true;
+      }
+    }
+  }
+  return reaching;
 }
 
 @freezed
