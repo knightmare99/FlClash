@@ -931,14 +931,12 @@ class IspEndpoint {
     if (value.contains('://')) {
       return _fromUri(value);
     }
-    if (value.contains('@')) {
-      return _fromUri('socks5://$value');
-    }
     final parts = value.split(':');
-    if (parts.length == 2) {
+    final colonForm = int.tryParse(parts.elementAtOrNull(1) ?? '') != null;
+    if (colonForm && parts.length == 2) {
       return _create('socks5', parts[0], parts[1]);
     }
-    if (parts.length >= 4) {
+    if (colonForm && parts.length >= 4) {
       return _create(
         'socks5',
         parts[0],
@@ -946,6 +944,9 @@ class IspEndpoint {
         username: parts[2],
         password: parts.sublist(3).join(':'),
       );
+    }
+    if (value.contains('@')) {
+      return _fromUri('socks5://$value');
     }
     return null;
   }
@@ -1025,7 +1026,6 @@ class IspEndpoint {
   }
 }
 
-/// Drops what the core would reject: one bad rule fails the whole profile.
 String? _bareDomainOf(String value) {
   final domain = value
       .trim()
@@ -1036,7 +1036,12 @@ String? _bareDomainOf(String value) {
   return domain.isEmpty || domain.contains(',') ? null : domain;
 }
 
-String? ispRuleOf(String entry, String target) {
+/// Drops what the core would reject: one bad rule fails the whole profile.
+String? ispRuleOf(
+  String entry,
+  String target, {
+  Map<dynamic, dynamic> rawConfig = const {},
+}) {
   final value = entry.trim();
   if (value.isEmpty) {
     return null;
@@ -1047,9 +1052,16 @@ String? ispRuleOf(String entry, String target) {
     return domain == null ? null : 'DOMAIN-SUFFIX,$domain,$target';
   }
   final type = parts.first.toUpperCase();
-  if (!RuleAction.values.any((action) => action.value == type)) {
+  if (type == RuleAction.MATCH.value ||
+      !RuleAction.values.any((action) => action.value == type)) {
     return null;
   }
+  final ruleProviders = rawConfig['rule-providers'];
+  if (type == RuleAction.RULE_SET.value &&
+      !(ruleProviders is Map && ruleProviders.containsKey(parts[1]))) {
+    return null;
+  }
+  parts[0] = type;
   if (parts.last == 'no-resolve' || parts.last == 'src') {
     parts.insert(parts.length - 1, target);
   } else {
@@ -1100,7 +1112,8 @@ extension IspProxyExt on IspProxy {
       },
     ];
     return [
-      for (final entry in this.rules) ?ispRuleOf(entry, ispProxyName),
+      for (final entry in this.rules)
+        ?ispRuleOf(entry, ispProxyName, rawConfig: rawConfig),
       ..._ispBuiltinRules,
       ..._ispDirectRules,
       'MATCH,$ispRelayGroupName',
@@ -1452,7 +1465,8 @@ extension PatchClashConfigExt on PatchClashConfig {
     List<String> rules,
   ) {
     final direct = [
-      for (final entry in alwaysDirect) ?ispRuleOf(entry, 'DIRECT'),
+      for (final entry in alwaysDirect)
+        ?ispRuleOf(entry, 'DIRECT', rawConfig: rawConfig),
     ];
     if (direct.isEmpty) {
       return rules;

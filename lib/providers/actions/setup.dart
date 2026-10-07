@@ -34,6 +34,18 @@ class SetupAction extends _$SetupAction {
       appSettingProvider.select((state) => state.showTrayTitle),
       (_, _) => _syncRuntimeTicker(),
     );
+    ref.listen(
+      patchClashConfigProvider.select(
+        (state) => state.alwaysDirect.isEmpty
+            ? null
+            : (state.alwaysDirect, state.mode == Mode.global),
+      ),
+      (_, _) {
+        if (ref.read(initProvider)) {
+          applyProfileDebounce(silence: true);
+        }
+      },
+    );
   }
 
   bool get _isTrafficShown =>

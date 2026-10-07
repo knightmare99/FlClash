@@ -38,6 +38,10 @@ void main() {
       expect(at.password, 'pass');
 
       expect(IspEndpoint.tryParse(' 1.2.3.4:1080 ')!.port, 1080);
+
+      final atInPassword = IspEndpoint.tryParse('1.2.3.4:45001:user:p@ss')!;
+      expect(atInPassword.server, '1.2.3.4');
+      expect(atInPassword.password, 'p@ss');
     });
 
     test('rejects what is not an address', () {
@@ -70,6 +74,19 @@ void main() {
     expect(ispRuleOf('*.openai.com', 'ISP'), 'DOMAIN-SUFFIX,openai.com,ISP');
     expect(ispRuleOf('FOO,bar', 'ISP'), isNull);
     expect(ispRuleOf('DST-PORT,abc', 'ISP'), isNull);
+    expect(ispRuleOf('MATCH,Proxy', 'ISP'), isNull);
+    expect(ispRuleOf('domain,a.com', 'ISP'), 'DOMAIN,a.com,ISP');
+    expect(ispRuleOf('RULE-SET,ai', 'ISP'), isNull);
+    expect(
+      ispRuleOf(
+        'RULE-SET,ai',
+        'ISP',
+        rawConfig: {
+          'rule-providers': {'ai': <String, dynamic>{}},
+        },
+      ),
+      'RULE-SET,ai,ISP',
+    );
   });
 
   group('IspProxy.inject', () {

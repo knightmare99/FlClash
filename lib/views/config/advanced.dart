@@ -57,14 +57,9 @@ class AdvancedConfigView extends StatelessWidget {
         selector: patchClashConfigProvider.select(
           (state) => state.alwaysDirect,
         ),
-        onChanged: (ref, value) {
-          ref
-              .read(patchClashConfigProvider.notifier)
-              .update((state) => state.copyWith(alwaysDirect: value));
-          ref
-              .read(setupActionProvider.notifier)
-              .applyProfileDebounce(silence: true);
-        },
+        onChanged: (ref, value) => ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(alwaysDirect: value)),
         itemMaxLength: TextInputLimits.rule,
       ),
       if (feature.customProviders) ...[
