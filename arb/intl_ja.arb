@@ -245,7 +245,7 @@
   "ispProxyDesc": "リスト内のドメインは Node グループのノード経由で静的ISPプロキシから送信し、中国本土は直結、その他はそのノードを使います",
   "ispProxyAddress": "プロキシアドレス",
   "ispProxyAddressDesc": "socks5://ユーザー:パスワード@ホスト:ポート、http://… または ホスト:ポート:ユーザー:パスワード",
-  "ispProxyAddressTip": "有効なプロキシアドレスを入力してください",
+  "ispProxyAddressTip": "ホスト:ポート:ユーザー:パスワード または socks5://ユーザー:パスワード@ホスト:ポート を入力してください",
   "ispProxyRules": "ドメインとルール",
   "writeToSystem": "システムに書き込む",
   "writeToSystemDesc": "システムクロックも設定します。Androidでは無視されます",

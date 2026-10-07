@@ -245,7 +245,7 @@
   "ispProxyDesc": "Домены из списка идут через статический ISP-прокси по узлу группы Node, материковый Китай — напрямую, остальное — через этот узел",
   "ispProxyAddress": "Адрес прокси",
   "ispProxyAddressDesc": "socks5://user:pass@host:port, http://… или host:port:user:pass",
-  "ispProxyAddressTip": "Введите корректный адрес прокси",
+  "ispProxyAddressTip": "Введите host:port:user:pass или socks5://user:pass@host:port",
   "ispProxyRules": "Домены и правила",
   "writeToSystem": "Записывать в систему",
   "writeToSystemDesc": "Также устанавливать системные часы; Android это игнорирует",

@@ -245,7 +245,7 @@
   "ispProxyDesc": "Listed domains leave through the static ISP proxy via the Node group's node, mainland China goes direct, everything else uses that node",
   "ispProxyAddress": "Proxy address",
   "ispProxyAddressDesc": "socks5://user:pass@host:port, http://… or host:port:user:pass",
-  "ispProxyAddressTip": "Enter a valid proxy address",
+  "ispProxyAddressTip": "Enter host:port:user:pass or socks5://user:pass@host:port",
   "ispProxyRules": "Domains and rules",
   "writeToSystem": "Write to system",
   "writeToSystemDesc": "Also set the system clock; Android ignores it",
