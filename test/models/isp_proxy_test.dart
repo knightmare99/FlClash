@@ -99,6 +99,11 @@ void main() {
 
       expect(rules.first, 'DOMAIN-SUFFIX,openai.com,ISP');
       expect(rules, containsAll(['GEOSITE,cn,DIRECT', 'GEOIP,CN,DIRECT']));
+      expect(rules, contains('IP-CIDR,160.79.104.0/23,ISP,no-resolve'));
+      expect(
+        rules.indexOf('IP-CIDR,160.79.104.0/23,ISP,no-resolve'),
+        lessThan(rules.indexOf('GEOIP,CN,DIRECT')),
+      );
       expect(rules.last, 'MATCH,$ispRelayGroupName');
       expect(rules, isNot(contains('MATCH,Select')));
       expect((raw['proxies'] as List).last, {
@@ -152,6 +157,16 @@ void main() {
       expect(isp.inject(taken, const []), isEmpty);
       expect(jsonEncode(taken), before);
     });
+  });
+
+  test('process lookup is on only while the ISP proxy is', () {
+    const off = PatchClashConfig();
+    expect(off.effectiveFindProcessMode, FindProcessMode.off);
+    expect(
+      off.copyWith(ispProxy: const IspProxy(enable: true))
+          .effectiveFindProcessMode,
+      FindProcessMode.always,
+    );
   });
 
   test('PatchClashConfig keeps the ISP proxy through JSON', () {

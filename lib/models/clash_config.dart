@@ -46,6 +46,12 @@ const defaultIspProxyRules = [
   'prodregistryv2.org',
   'ping0.cc',
 ];
+const _ispBuiltinRules = [
+  'IP-CIDR,160.79.104.0/23,$ispProxyName,no-resolve',
+  'IP-CIDR6,2607:6bc0::/48,$ispProxyName,no-resolve',
+  r'PROCESS-NAME-REGEX,(?i)^claude(\.exe)?$,' + ispProxyName,
+  r'PROCESS-NAME-REGEX,(?i)^chatgpt(\.exe)?$,' + ispProxyName,
+];
 const _ispDirectRules = [
   'GEOSITE,private,DIRECT',
   'IP-CIDR,127.0.0.0/8,DIRECT',
@@ -1089,6 +1095,7 @@ extension IspProxyExt on IspProxy {
     ];
     return [
       for (final entry in this.rules) ?ispRuleOf(entry, ispProxyName),
+      ..._ispBuiltinRules,
       ..._ispDirectRules,
       'MATCH,$ispRelayGroupName',
     ];
@@ -1425,6 +1432,9 @@ abstract class PatchClashConfig with _$PatchClashConfig {
 }
 
 extension PatchClashConfigExt on PatchClashConfig {
+  FindProcessMode get effectiveFindProcessMode =>
+      ispProxy.enable ? FindProcessMode.always : findProcessMode;
+
   UpdateParams toUpdateParams({
     required RouteMode routeMode,
     required List<String> authentication,
@@ -1433,7 +1443,7 @@ extension PatchClashConfigExt on PatchClashConfig {
       tun: tun.getRealTun(routeMode),
       authentication: authentication,
       allowLan: allowLan,
-      findProcessMode: findProcessMode,
+      findProcessMode: effectiveFindProcessMode,
       mode: mode,
       logLevel: logLevel,
       ipv6: ipv6,
