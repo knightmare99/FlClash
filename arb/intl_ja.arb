@@ -242,7 +242,7 @@
   "dialerProxy": "ダイヤラープロキシ",
   "dialerProxyDesc": "NTPサーバーへの接続に使用するアウトバウンド",
   "ispProxy": "ISPプロキシ",
-  "ispProxyDesc": "リスト内のドメインを静的ISPプロキシ経由で送信します。中継ノードは ISP Relay グループで選択します",
+  "ispProxyDesc": "リスト内のドメインは Node グループのノード経由で静的ISPプロキシから送信し、中国本土は直結、その他はそのノードを使います",
   "ispProxyAddress": "プロキシアドレス",
   "ispProxyAddressDesc": "socks5://ユーザー:パスワード@ホスト:ポート、http://… または ホスト:ポート:ユーザー:パスワード",
   "ispProxyAddressTip": "有効なプロキシアドレスを入力してください",

@@ -17,8 +17,12 @@ const defaultNtp = Ntp();
 const defaultIspProxy = IspProxy();
 
 const ispProxyName = 'ISP';
-const ispRelayGroupName = 'ISP Relay';
+const ispRelayGroupName = 'Node';
 const defaultIspProxyRules = [
+  'anthropic.com',
+  'claude.ai',
+  'claude.com',
+  'claudeusercontent.com',
   'openai.com',
   'chatgpt.com',
   'oaistatic.com',
@@ -33,6 +37,17 @@ const defaultIspProxyRules = [
   'DOMAIN,challenges.cloudflare.com',
   'DOMAIN,js.stripe.com',
   'ping0.cc',
+];
+const _ispDirectRules = [
+  'GEOSITE,private,DIRECT',
+  'IP-CIDR,127.0.0.0/8,DIRECT,no-resolve',
+  'IP-CIDR,10.0.0.0/8,DIRECT,no-resolve',
+  'IP-CIDR,172.16.0.0/12,DIRECT,no-resolve',
+  'IP-CIDR,192.168.0.0/16,DIRECT,no-resolve',
+  'IP-CIDR,100.64.0.0/10,DIRECT,no-resolve',
+  'IP-CIDR,169.254.0.0/16,DIRECT,no-resolve',
+  'GEOSITE,cn,DIRECT',
+  'GEOIP,CN,DIRECT',
 ];
 
 /// What a profile that brings no DNS section of its own is given, so the core
@@ -855,6 +870,11 @@ abstract class IspProxy with _$IspProxy {
     @Default(false) bool enable,
     @Default('') String address,
     @Default(defaultIspProxyRules) List<String> rules,
+    @JsonKey(
+      name: 'restore-mode',
+      unknownEnumValue: JsonKey.nullForUndefinedEnumValue,
+    )
+    Mode? restoreMode,
   }) = _IspProxy;
 
   factory IspProxy.fromJson(Map<String, Object?> json) =>
@@ -1020,9 +1040,6 @@ String? ispRuleOf(String entry, String target) {
 }
 
 extension IspProxyExt on IspProxy {
-  /// Adds the ISP proxy, dialed through a select group of everything the
-  /// profile already has, and routes [rules] to it ahead of the profile's
-  /// own. A profile already using either name is left untouched.
   List<String> inject(Map<dynamic, dynamic> rawConfig, List<String> rules) {
     final endpoint = enable ? IspEndpoint.tryParse(address) : null;
     if (endpoint == null) {
@@ -1064,7 +1081,8 @@ extension IspProxyExt on IspProxy {
     ];
     return [
       for (final entry in this.rules) ?ispRuleOf(entry, ispProxyName),
-      ...rules,
+      ..._ispDirectRules,
+      'MATCH,$ispRelayGroupName',
     ];
   }
 }

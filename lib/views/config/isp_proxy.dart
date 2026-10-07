@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -15,6 +16,42 @@ ConfigWriter<T> _ispWriter<T>(
   return (ref, value) => ref
       .read(patchClashConfigProvider.notifier)
       .update((state) => update(state, value));
+}
+
+void _setIspProxyEnabled(WidgetRef ref, bool enable) {
+  final config = ref.read(patchClashConfigProvider);
+  if (config.ispProxy.enable == enable) {
+    return;
+  }
+  if (enable && IspEndpoint.tryParse(config.ispProxy.address) == null) {
+    dialogs.showNotifier(currentAppLocalizations.ispProxyAddressTip);
+    return;
+  }
+  final selectedMap = ref.read(selectedMapProvider);
+  final globalName = GroupName.GLOBAL.name;
+  final from = enable ? globalName : ispRelayGroupName;
+  final to = enable ? ispRelayGroupName : globalName;
+  final selected = selectedMap[from];
+  if (selected != null &&
+      selected != ispProxyName &&
+      selected != ispRelayGroupName) {
+    ref
+        .read(profilesActionProvider.notifier)
+        .updateCurrentSelectedMap(to, selected);
+  }
+  ref
+      .read(patchClashConfigProvider.notifier)
+      .update(
+        (state) => state.copyWith.ispProxy(
+          enable: enable,
+          restoreMode: enable ? state.mode : null,
+        ),
+      );
+  final setupAction = ref.read(setupActionProvider.notifier);
+  setupAction.changeMode(
+    enable ? Mode.rule : config.ispProxy.restoreMode ?? config.mode,
+  );
+  setupAction.applyProfileDebounce(silence: true);
 }
 
 class IspProxyView extends ConsumerStatefulWidget {
@@ -55,9 +92,7 @@ class _IspProxyViewState extends ConsumerState<IspProxyView> {
                 title: (l) => l.ispProxy,
                 subtitle: (l) => l.ispProxyDesc,
                 selector: _ispSelector((isp) => isp.enable),
-                onChanged: _ispWriter(
-                  (state, value) => state.copyWith.ispProxy(enable: value),
-                ),
+                onChanged: _setIspProxyEnabled,
               ),
               ConfigTextItem(
                 title: (l) => l.ispProxyAddress,

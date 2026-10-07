@@ -242,7 +242,7 @@
   "dialerProxy": "Прокси для подключения",
   "dialerProxyDesc": "Исход, через который идёт обращение к NTP-серверу",
   "ispProxy": "ISP-прокси",
-  "ispProxyDesc": "Направлять домены из списка через статический ISP-прокси; промежуточный узел выбирается в группе ISP Relay",
+  "ispProxyDesc": "Домены из списка идут через статический ISP-прокси по узлу группы Node, материковый Китай — напрямую, остальное — через этот узел",
   "ispProxyAddress": "Адрес прокси",
   "ispProxyAddressDesc": "socks5://user:pass@host:port, http://… или host:port:user:pass",
   "ispProxyAddressTip": "Введите корректный адрес прокси",

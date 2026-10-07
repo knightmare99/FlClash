@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:test/test.dart';
 
@@ -90,11 +91,14 @@ void main() {
       rules: ['openai.com'],
     );
 
-    test('adds the proxy, its relay group and the rules ahead', () {
+    test('replaces the rules with the ISP split around the node group', () {
       final raw = profile();
       final rules = isp.inject(raw, ['MATCH,Select']);
 
-      expect(rules, ['DOMAIN-SUFFIX,openai.com,ISP', 'MATCH,Select']);
+      expect(rules.first, 'DOMAIN-SUFFIX,openai.com,ISP');
+      expect(rules, containsAll(['GEOSITE,cn,DIRECT', 'GEOIP,CN,DIRECT']));
+      expect(rules.last, 'MATCH,$ispRelayGroupName');
+      expect(rules, isNot(contains('MATCH,Select')));
       expect((raw['proxies'] as List).last, {
         'name': ispProxyName,
         'type': 'socks5',
@@ -150,7 +154,11 @@ void main() {
 
   test('PatchClashConfig keeps the ISP proxy through JSON', () {
     const config = PatchClashConfig(
-      ispProxy: IspProxy(enable: true, address: '1.2.3.4:1080'),
+      ispProxy: IspProxy(
+        enable: true,
+        address: '1.2.3.4:1080',
+        restoreMode: Mode.global,
+      ),
     );
     final decoded = PatchClashConfig.fromJson(
       jsonDecode(jsonEncode(config.toJson())) as Map<String, Object?>,
