@@ -35,7 +35,15 @@ const defaultIspProxyRules = [
   'intercomcdn.com',
   'ct.sendgrid.net',
   'DOMAIN,challenges.cloudflare.com',
-  'DOMAIN,js.stripe.com',
+  'stripe.com',
+  'stripe.network',
+  'sentry.io',
+  'segment.io',
+  'segment.com',
+  'statsigapi.net',
+  'featuregates.org',
+  'featureassets.org',
+  'prodregistryv2.org',
   'ping0.cc',
 ];
 const _ispDirectRules = [
