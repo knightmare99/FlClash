@@ -1,0 +1,57 @@
+name: windows-exe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - isp-proxy
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - name: Enable git long paths
+        run: git config --global core.longpaths true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+          flutter-version: '3.47.4'
+          cache: true
+
+      - name: Generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          dart run intl_utils:generate
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test test/models/isp_proxy_test.dart test/models/config_test.dart
+
+      - name: Package
+        run: dart setup.dart windows -v
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlClash-windows-amd64
+          path: ./dist

@@ -348,7 +348,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
         .map((item) => item.definition)
         .toList();
   }
-  rawConfig['rules'] = rules;
+  rawConfig['rules'] = realPatchConfig.ispProxy.inject(rawConfig, rules);
   final yaml = await _encodeYaml(Map<String, dynamic>.from(rawConfig));
   return (yaml: yaml, md5: yaml.toMd5());
 }

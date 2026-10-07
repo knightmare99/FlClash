@@ -2,6 +2,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/views/config/dns.dart';
+import 'package:fl_clash/views/config/isp_proxy.dart';
 import 'package:fl_clash/views/config/network.dart';
 import 'package:fl_clash/views/config/ntp.dart';
 import 'package:fl_clash/views/config/providers.dart';
@@ -41,6 +42,11 @@ class AdvancedConfigView extends StatelessWidget {
         title: Text(appLocalizations.addedRules),
         leading: const GlyphIcon(AppGlyphs.rules),
         widget: const AddedRulesView(),
+      ),
+      ListItem.open(
+        title: Text(appLocalizations.ispProxy),
+        leading: const GlyphIcon(AppGlyphs.link),
+        widget: const IspProxyView(),
       ),
       if (feature.customProviders) ...[
         ListItem.open(

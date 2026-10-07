@@ -14,6 +14,26 @@ const defaultClashConfig = PatchClashConfig();
 const defaultTun = Tun();
 const defaultDns = Dns();
 const defaultNtp = Ntp();
+const defaultIspProxy = IspProxy();
+
+const ispProxyName = 'ISP';
+const ispRelayGroupName = 'ISP Relay';
+const defaultIspProxyRules = [
+  'openai.com',
+  'chatgpt.com',
+  'oaistatic.com',
+  'oaiusercontent.com',
+  'oaistatsig.com',
+  'openaimerge.com',
+  'workos.com',
+  'workoscdn.com',
+  'intercom.io',
+  'intercomcdn.com',
+  'ct.sendgrid.net',
+  'DOMAIN,challenges.cloudflare.com',
+  'DOMAIN,js.stripe.com',
+  'ping0.cc',
+];
 
 /// What a profile that brings no DNS section of its own is given, so the core
 /// always resolves. The user's own override set starts empty.
@@ -830,6 +850,212 @@ extension NtpOverrideExt on Ntp {
 }
 
 @freezed
+abstract class IspProxy with _$IspProxy {
+  const factory IspProxy({
+    @Default(false) bool enable,
+    @Default('') String address,
+    @Default(defaultIspProxyRules) List<String> rules,
+  }) = _IspProxy;
+
+  factory IspProxy.fromJson(Map<String, Object?> json) =>
+      _$IspProxyFromJson(json);
+
+  factory IspProxy.safeIspProxyFromJson(Map<String, Object?> json) {
+    return decodeOrRestoreDefault(
+      'isp proxy',
+      () => IspProxy.fromJson(json),
+      () => defaultIspProxy,
+    );
+  }
+}
+
+class IspEndpoint {
+  const IspEndpoint({
+    required this.type,
+    required this.server,
+    required this.port,
+    this.username = '',
+    this.password = '',
+    this.tls = false,
+  });
+
+  final String type;
+  final String server;
+  final int port;
+  final String username;
+  final String password;
+  final bool tls;
+
+  /// Accepts `socks5://user:pass@host:port` (also `http://`, `https://`),
+  /// `user:pass@host:port`, and the `host:port[:user:pass]` form ISP proxy
+  /// sellers hand out; a scheme-less address is SOCKS5.
+  static IspEndpoint? tryParse(String input) {
+    final value = input.trim();
+    if (value.isEmpty) {
+      return null;
+    }
+    if (value.contains('://')) {
+      return _fromUri(value);
+    }
+    if (value.contains('@')) {
+      return _fromUri('socks5://$value');
+    }
+    final parts = value.split(':');
+    if (parts.length == 2) {
+      return _create('socks5', parts[0], parts[1]);
+    }
+    if (parts.length >= 4) {
+      return _create(
+        'socks5',
+        parts[0],
+        parts[1],
+        username: parts[2],
+        password: parts.sublist(3).join(':'),
+      );
+    }
+    return null;
+  }
+
+  static IspEndpoint? _fromUri(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      return null;
+    }
+    final scheme = uri.scheme.toLowerCase();
+    final type = switch (scheme) {
+      'socks5' || 'socks5h' || 'socks' => 'socks5',
+      'http' || 'https' => 'http',
+      _ => null,
+    };
+    if (type == null || !uri.hasPort) {
+      return null;
+    }
+    final separator = uri.userInfo.indexOf(':');
+    final rawUsername = separator == -1
+        ? uri.userInfo
+        : uri.userInfo.substring(0, separator);
+    final rawPassword = separator == -1
+        ? ''
+        : uri.userInfo.substring(separator + 1);
+    try {
+      return _create(
+        type,
+        uri.host,
+        '${uri.port}',
+        username: Uri.decodeComponent(rawUsername),
+        password: Uri.decodeComponent(rawPassword),
+        tls: scheme == 'https',
+      );
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  static IspEndpoint? _create(
+    String type,
+    String server,
+    String port, {
+    String username = '',
+    String password = '',
+    bool tls = false,
+  }) {
+    final host = server.trim();
+    final number = int.tryParse(port.trim());
+    if (host.isEmpty || number == null || number < 1 || number > 65535) {
+      return null;
+    }
+    return IspEndpoint(
+      type: type,
+      server: host,
+      port: number,
+      username: username,
+      password: password,
+      tls: tls,
+    );
+  }
+
+  Map<String, Object?> toProxy({
+    required String name,
+    required String dialerProxy,
+  }) {
+    return {
+      'name': name,
+      'type': type,
+      'server': server,
+      'port': port,
+      if (username.isNotEmpty) 'username': username,
+      if (password.isNotEmpty) 'password': password,
+      if (tls) 'tls': true,
+      'dialer-proxy': dialerProxy,
+    };
+  }
+}
+
+/// A bare domain is a `DOMAIN-SUFFIX` rule; anything with a comma is a rule
+/// without its target, which goes ahead of a trailing `no-resolve` or `src`.
+String? ispRuleOf(String entry, String target) {
+  final value = entry.trim();
+  if (value.isEmpty) {
+    return null;
+  }
+  final parts = value.split(',').map((part) => part.trim()).toList();
+  if (parts.length == 1) {
+    return 'DOMAIN-SUFFIX,$value,$target';
+  }
+  if (parts.last == 'no-resolve' || parts.last == 'src') {
+    parts.insert(parts.length - 1, target);
+  } else {
+    parts.add(target);
+  }
+  return parts.join(',');
+}
+
+extension IspProxyExt on IspProxy {
+  /// Adds the ISP proxy, dialed through a select group of everything the
+  /// profile already has, and routes [rules] to it ahead of the profile's
+  /// own. A profile already using either name is left untouched.
+  List<String> inject(Map<dynamic, dynamic> rawConfig, List<String> rules) {
+    final endpoint = enable ? IspEndpoint.tryParse(address) : null;
+    if (endpoint == null) {
+      return rules;
+    }
+    final proxies = rawConfig['proxies'] is List
+        ? List<Object?>.from(rawConfig['proxies'] as List)
+        : <Object?>[];
+    final groups = rawConfig['proxy-groups'] is List
+        ? List<Object?>.from(rawConfig['proxy-groups'] as List)
+        : <Object?>[];
+    String? nameOf(Object? item) =>
+        item is Map ? item['name']?.toString() : null;
+    final proxyNames = proxies.map(nameOf).nonNulls.toList();
+    final groupNames = groups.map(nameOf).nonNulls.toList();
+    final taken = {...proxyNames, ...groupNames};
+    if (taken.contains(ispProxyName) || taken.contains(ispRelayGroupName)) {
+      return rules;
+    }
+    final providers = rawConfig['proxy-providers'];
+    rawConfig['proxies'] = [
+      ...proxies,
+      endpoint.toProxy(name: ispProxyName, dialerProxy: ispRelayGroupName),
+    ];
+    rawConfig['proxy-groups'] = [
+      ...groups,
+      {
+        'name': ispRelayGroupName,
+        'type': 'select',
+        'proxies': [...groupNames, ...proxyNames, 'DIRECT'],
+        if (providers is Map && providers.isNotEmpty)
+          'use': [for (final key in providers.keys) key.toString()],
+      },
+    ];
+    return [
+      for (final entry in this.rules) ?ispRuleOf(entry, ispProxyName),
+      ...rules,
+    ];
+  }
+}
+
+@freezed
 abstract class Rule with _$Rule {
   const factory Rule({
     @Default(-1) int id,
@@ -1096,6 +1322,9 @@ abstract class PatchClashConfig with _$PatchClashConfig {
     @Default({})
     @JsonKey(name: _ntpOverrideKeysJsonKey, fromJson: _ntpOverrideKeysFromJson)
     Set<NtpOverrideKey> ntpOverrideKeys,
+    @Default(defaultIspProxy)
+    @JsonKey(name: 'isp-proxy', fromJson: IspProxy.safeIspProxyFromJson)
+    IspProxy ispProxy,
     @Default(defaultGeoXUrl)
     @JsonKey(
       name: 'geox-url',
