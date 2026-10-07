@@ -1026,6 +1026,16 @@ class IspEndpoint {
 }
 
 /// Drops what the core would reject: one bad rule fails the whole profile.
+String? _bareDomainOf(String value) {
+  final domain = value
+      .trim()
+      .replaceFirst(RegExp(r'^[a-zA-Z][\w+.-]*://'), '')
+      .split(RegExp(r'[/?#]'))
+      .first
+      .replaceFirst(RegExp(r'^(\*|\+)?\.'), '');
+  return domain.isEmpty || domain.contains(',') ? null : domain;
+}
+
 String? ispRuleOf(String entry, String target) {
   final value = entry.trim();
   if (value.isEmpty) {
@@ -1033,12 +1043,8 @@ String? ispRuleOf(String entry, String target) {
   }
   final parts = value.split(',').map((part) => part.trim()).toList();
   if (parts.length == 1) {
-    final domain = value
-        .replaceFirst(RegExp(r'^[a-zA-Z][\w+.-]*://'), '')
-        .split(RegExp(r'[/?#]'))
-        .first
-        .replaceFirst(RegExp(r'^(\*|\+)?\.'), '');
-    return domain.isEmpty ? null : 'DOMAIN-SUFFIX,$domain,$target';
+    final domain = _bareDomainOf(value);
+    return domain == null ? null : 'DOMAIN-SUFFIX,$domain,$target';
   }
   final type = parts.first.toUpperCase();
   if (!RuleAction.values.any((action) => action.value == type)) {
@@ -1397,6 +1403,7 @@ abstract class PatchClashConfig with _$PatchClashConfig {
     @Default(defaultIspProxy)
     @JsonKey(name: 'isp-proxy', fromJson: IspProxy.safeIspProxyFromJson)
     IspProxy ispProxy,
+    @Default([]) @JsonKey(name: 'always-direct') List<String> alwaysDirect,
     @Default(defaultGeoXUrl)
     @JsonKey(
       name: 'geox-url',
@@ -1435,6 +1442,52 @@ extension PatchClashConfigExt on PatchClashConfig {
   FindProcessMode get effectiveFindProcessMode =>
       ispProxy.enable ? FindProcessMode.always : findProcessMode;
 
+  /// mihomo's global mode skips every rule, so global with always-direct
+  /// entries runs as rule mode whose catch-all is the GLOBAL group.
+  Mode get effectiveMode =>
+      mode == Mode.global && alwaysDirect.isNotEmpty ? Mode.rule : mode;
+
+  List<String> applyAlwaysDirect(
+    Map<dynamic, dynamic> rawConfig,
+    List<String> rules,
+  ) {
+    final direct = [
+      for (final entry in alwaysDirect) ?ispRuleOf(entry, 'DIRECT'),
+    ];
+    if (direct.isEmpty) {
+      return rules;
+    }
+    final patterns = [
+      for (final entry in alwaysDirect)
+        if (_bareDomainOf(entry) case final domain?) '+.$domain',
+    ];
+    final dns = rawConfig['dns'];
+    if (dns is Map && patterns.isNotEmpty) {
+      if (dns['fake-ip-filter-mode'] != 'whitelist') {
+        final filter = dns['fake-ip-filter'] is List
+            ? List<Object?>.from(dns['fake-ip-filter'] as List)
+            : <Object?>[];
+        dns['fake-ip-filter'] = [
+          ...filter,
+          for (final pattern in patterns)
+            if (!filter.contains(pattern)) pattern,
+        ];
+      }
+      final policy = dns['nameserver-policy'] is Map
+          ? Map<Object?, Object?>.from(dns['nameserver-policy'] as Map)
+          : <Object?, Object?>{};
+      dns['nameserver-policy'] = {
+        ...policy,
+        for (final pattern in patterns)
+          if (!policy.containsKey(pattern)) pattern: 'system://',
+      };
+    }
+    return [
+      ...direct,
+      if (mode == Mode.global) 'MATCH,${GroupName.GLOBAL.name}' else ...rules,
+    ];
+  }
+
   UpdateParams toUpdateParams({
     required RouteMode routeMode,
     required List<String> authentication,
@@ -1444,7 +1497,7 @@ extension PatchClashConfigExt on PatchClashConfig {
       authentication: authentication,
       allowLan: allowLan,
       findProcessMode: effectiveFindProcessMode,
-      mode: mode,
+      mode: effectiveMode,
       logLevel: logLevel,
       ipv6: ipv6,
       tcpConcurrent: tcpConcurrent,

@@ -1,12 +1,14 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/config/dns.dart';
 import 'package:fl_clash/views/config/isp_proxy.dart';
 import 'package:fl_clash/views/config/network.dart';
 import 'package:fl_clash/views/config/ntp.dart';
 import 'package:fl_clash/views/config/providers.dart';
 import 'package:fl_clash/views/config/scripts.dart';
+import 'package:fl_clash/widgets/config_item.dart';
 import 'package:fl_clash/widgets/list.dart';
 import 'package:fl_clash/widgets/scaffold.dart';
 import 'package:material_ui/material_ui.dart';
@@ -47,6 +49,23 @@ class AdvancedConfigView extends StatelessWidget {
         title: Text(appLocalizations.ispProxy),
         leading: const GlyphIcon(AppGlyphs.link),
         widget: const IspProxyView(),
+      ),
+      ConfigListEditItem(
+        leading: const GlyphIcon(AppGlyphs.networkCheck),
+        title: (l) => l.alwaysDirect,
+        subtitle: (l) => l.alwaysDirectDesc,
+        selector: patchClashConfigProvider.select(
+          (state) => state.alwaysDirect,
+        ),
+        onChanged: (ref, value) {
+          ref
+              .read(patchClashConfigProvider.notifier)
+              .update((state) => state.copyWith(alwaysDirect: value));
+          ref
+              .read(setupActionProvider.notifier)
+              .applyProfileDebounce(silence: true);
+        },
+        itemMaxLength: TextInputLimits.rule,
       ),
       if (feature.customProviders) ...[
         ListItem.open(

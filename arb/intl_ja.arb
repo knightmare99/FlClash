@@ -247,6 +247,8 @@
   "ispProxyAddressDesc": "socks5://ユーザー:パスワード@ホスト:ポート、http://… または ホスト:ポート:ユーザー:パスワード",
   "ispProxyAddressTip": "ホスト:ポート:ユーザー:パスワード または socks5://ユーザー:パスワード@ホスト:ポート を入力してください",
   "ispProxyRules": "ドメインとルール",
+  "alwaysDirect": "常に直接接続",
+  "alwaysDirectDesc": "リスト内のドメインとサブドメインは、どのモードでも直接接続し、システム DNS で解決します",
   "writeToSystem": "システムに書き込む",
   "writeToSystemDesc": "システムクロックも設定します。Androidでは無視されます",
   "overrideEntries": "上書き項目",

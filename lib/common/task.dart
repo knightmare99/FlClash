@@ -194,7 +194,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
   // skip-auth-prefixes could silently exempt loopback and defeat it.
   rawConfig['authentication'] = data.authentication;
   rawConfig['skip-auth-prefixes'] = [];
-  rawConfig['mode'] = realPatchConfig.mode.name;
+  rawConfig['mode'] = realPatchConfig.effectiveMode.name;
   if (rawConfig['tun'] == null) {
     rawConfig['tun'] = {};
   }
@@ -349,7 +349,10 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
         .map((item) => item.definition)
         .toList();
   }
-  rawConfig['rules'] = realPatchConfig.ispProxy.inject(rawConfig, rules);
+  rawConfig['rules'] = realPatchConfig.applyAlwaysDirect(
+    rawConfig,
+    realPatchConfig.ispProxy.inject(rawConfig, rules),
+  );
   final yaml = await _encodeYaml(Map<String, dynamic>.from(rawConfig));
   return (yaml: yaml, md5: yaml.toMd5());
 }

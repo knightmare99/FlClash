@@ -247,6 +247,8 @@
   "ispProxyAddressDesc": "socks5://user:pass@host:port, http://… или host:port:user:pass",
   "ispProxyAddressTip": "Введите host:port:user:pass или socks5://user:pass@host:port",
   "ispProxyRules": "Домены и правила",
+  "alwaysDirect": "Всегда напрямую",
+  "alwaysDirectDesc": "Домены из списка и их поддомены в любом режиме идут напрямую и разрешаются системным DNS",
   "writeToSystem": "Записывать в систему",
   "writeToSystemDesc": "Также устанавливать системные часы; Android это игнорирует",
   "overrideEntries": "Переопределяемые параметры",

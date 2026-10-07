@@ -159,6 +159,54 @@ void main() {
     });
   });
 
+  group('always direct', () {
+    Map<String, dynamic> raw() => {
+      'dns': <String, dynamic>{
+        'fake-ip-filter': <Object?>['*.lan'],
+      },
+    };
+
+    test('goes ahead of the rules and resolves through the system', () {
+      const config = PatchClashConfig(
+        alwaysDirect: ['https://git.example.cn/group', 'DOMAIN,a.example.cn'],
+      );
+      final profile = raw();
+      final rules = config.applyAlwaysDirect(profile, ['MATCH,Proxy']);
+
+      expect(rules, [
+        'DOMAIN-SUFFIX,git.example.cn,DIRECT',
+        'DOMAIN,a.example.cn,DIRECT',
+        'MATCH,Proxy',
+      ]);
+      expect(config.effectiveMode, Mode.rule);
+      final dns = profile['dns'] as Map;
+      expect(dns['fake-ip-filter'], ['*.lan', '+.git.example.cn']);
+      expect(dns['nameserver-policy'], {'+.git.example.cn': 'system://'});
+    });
+
+    test('runs global mode as rules that end at GLOBAL', () {
+      const config = PatchClashConfig(
+        mode: Mode.global,
+        alwaysDirect: ['git.example.cn'],
+      );
+      expect(config.effectiveMode, Mode.rule);
+      expect(config.applyAlwaysDirect(raw(), ['MATCH,Proxy']), [
+        'DOMAIN-SUFFIX,git.example.cn,DIRECT',
+        'MATCH,GLOBAL',
+      ]);
+    });
+
+    test('changes nothing while the list is empty', () {
+      const config = PatchClashConfig(mode: Mode.global);
+      final profile = raw();
+      expect(config.applyAlwaysDirect(profile, ['MATCH,Proxy']), [
+        'MATCH,Proxy',
+      ]);
+      expect(config.effectiveMode, Mode.global);
+      expect(profile, raw());
+    });
+  });
+
   test('process lookup is on only while the ISP proxy is', () {
     const off = PatchClashConfig();
     expect(off.effectiveFindProcessMode, FindProcessMode.off);

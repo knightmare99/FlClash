@@ -247,6 +247,8 @@
   "ispProxyAddressDesc": "socks5://用户名:密码@主机:端口、http://… 或 主机:端口:用户名:密码",
   "ispProxyAddressTip": "请输入 主机:端口:用户名:密码 或 socks5://用户名:密码@主机:端口",
   "ispProxyRules": "域名与规则",
+  "alwaysDirect": "始终直连",
+  "alwaysDirectDesc": "列表中的域名及其子域名在任何模式下都直连，并用系统 DNS 解析",
   "writeToSystem": "写入系统",
   "writeToSystemDesc": "同时设置系统时钟，Android上不生效",
   "overrideEntries": "覆写项",
